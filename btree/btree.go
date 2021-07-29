@@ -23,7 +23,7 @@ func (k Keys) find(item Key) (index int, found bool) {
 }
 
 type node interface {
-	findAndGetStack(key Key, stackIn []node) (value interface{}, stackOut []node)
+	findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair)
 	SplitNode(index int) (left node, keyAtLeft Key, keyAtRight Key)
 	PrintNode()
 }
@@ -109,16 +109,6 @@ func (n *InternalNode) internalInsertAt(index int, key Key, pointer node) {
 	n.Keys[index] = key
 
 	n.Pointers = append(n.Pointers, pointer)
-	copy(n.Pointers[index+1:], n.Pointers[index:])
-	n.Pointers[index] = pointer
-}
-
-func (n *InternalNode) internalInsertAt2(index int, key Key, pointer node) {
-	n.Keys = append(n.Keys, key)
-	copy(n.Keys[index+1:], n.Keys[index:])
-	n.Keys[index] = key
-
-	n.Pointers = append(n.Pointers, pointer)
 	copy(n.Pointers[index+2:], n.Pointers[index+1:])
 	n.Pointers[index+1] = pointer
 }
@@ -133,40 +123,13 @@ func (n *LeafNode) leafInsertAt(index int, key Key, value interface{}) {
 	n.values[index] = value
 }
 
-func (n *LeafNode) leafInsertAt2(index int, key Key, value interface{}) {
-	n.keys = append(n.keys, key)
-	copy(n.keys[index+1:], n.keys[index:])
-	n.keys[index] = key
-
-	n.values = append(n.values, value)
-	copy(n.values[index+1:], n.values[index:])
-	n.values[index] = value
-}
-
-func (n *InternalNode) SplitNode(index int) (leftNode node, keyAtLeft Key, keyAtRight Key) {
-	left := newNode()
-	keyAtLeft = n.Keys[index-1]
-	keyAtRight = n.Keys[index]
-	left.Keys = n.Keys
-	left.Pointers = n.Pointers
-	n.Pointers = make([]node, 0, 2)
-	n.Keys = make(Keys, 0, 2)
-
-	n.Keys = append(n.Keys, left.Keys[index+1:]...)
-	// TODO: yeni node bir eksik pointer ile kaldıyor ya la
-	n.Pointers = append(n.Pointers, left.Pointers[index+1:]...)
-
-	left.truncate(index)
-	return left, keyAtLeft, keyAtRight
-}
-
-func (n *InternalNode) SplitNode2(index int) (rightNode node, keyAtLeft Key, keyAtRight Key) {
+func (n *InternalNode) SplitNode(index int) (rightNode node, keyAtLeft Key, keyAtRight Key) {
 	right := newNode()
 	keyAtLeft = n.Keys[index-1]
 	keyAtRight = n.Keys[index]
 
-	right.Keys = append(right.Keys, n.Keys[index:]...)
-	right.Pointers = append(right.Pointers, n.Pointers[index:]...)
+	right.Keys = append(right.Keys, n.Keys[index+1:]...)
+	right.Pointers = append(right.Pointers, n.Pointers[index+1:]...)
 	n.Keys = n.Keys[:index]
 	n.Pointers = n.Pointers[:index]
 
@@ -174,27 +137,7 @@ func (n *InternalNode) SplitNode2(index int) (rightNode node, keyAtLeft Key, key
 	return right, keyAtLeft, keyAtRight
 }
 
-func (n *LeafNode) SplitNode(index int) (leftNode node, keyAtLeft Key, keyAtRight Key) {
-	left := newLeafNode()
-	keyAtLeft = n.keys[index-1]
-	keyAtRight = n.keys[index]
-	left.keys = n.keys
-	left.values = n.values
-	n.values = make([]interface{}, 0, 2)
-	n.keys = make(Keys, 0, 2)
-
-	n.keys = append(n.keys, left.keys[index:]...)
-	n.values = append(n.values, left.values[index:]...)
-
-	left.keys = left.keys[:index]
-	left.values = left.values[:index]
-	left.Left = n.Left
-	left.Right = n
-	n.Left = left
-	return left, keyAtLeft, keyAtRight
-}
-
-func (n *LeafNode) SplitNode2(index int) (rightNode node, keyAtLeft Key, keyAtRight Key) {
+func (n *LeafNode) SplitNode(index int) (rightNode node, keyAtLeft Key, keyAtRight Key) {
 	right := newLeafNode()
 	keyAtLeft = n.keys[index-1]
 	keyAtRight = n.keys[index]
@@ -210,44 +153,41 @@ func (n *LeafNode) SplitNode2(index int) (rightNode node, keyAtLeft Key, keyAtRi
 }
 
 func (tree *BTree) Insert(key Key, value interface{}) {
-	var stack = make([]node, 0, 0)
+	var stack = make([]NodeIndexPair, 0, 0)
 	var i interface{}
 	i, stack = tree.Root.findAndGetStack(key, stack)
 	if i != nil {
 		panic("key already exists")
 	}
 
-	leafNode := stack[len(stack)-1].(*LeafNode)
+	leafNode := stack[len(stack)-1].Node.(*LeafNode)
 	index, _ := leafNode.keys.find(key)
 	leafNode.leafInsertAt(index, key, value)
 	stack = stack[:len(stack)-1]
 
 	if len(leafNode.values) == tree.degree {
-		var leftNode node
+		var rightNod node
 		var rightKey Key
 
-		leftNode, _, rightKey = leafNode.SplitNode((len(leafNode.values) - 1) / 2)
-		var rightNode node = leafNode
+		rightNod, _, rightKey = leafNode.SplitNode(len(leafNode.keys) / 2)
+		var leftNode node = leafNode
 		for len(stack) > 0 {
-			top := stack[len(stack)-1].(*InternalNode)
+			top := stack[len(stack)-1].Node.(*InternalNode)
 			stack = stack[:len(stack)-1]
 
 			i, _ := top.Keys.find(key)
-			top.internalInsertAt(i, rightKey, leftNode)
+			top.internalInsertAt(i, rightKey, rightNod)
 			if len(top.Pointers) == tree.degree+1 {
-				leftNode, _, rightKey = top.SplitNode((len(top.Pointers) - 1) / 2)
-				rightNode = top
+				rightNod, _, rightKey = top.SplitNode((len(top.Pointers) - 1) / 2)
+				leftNode = top
 				// if top is root node special case, create new root
 				if top == tree.Root {
 					tree.Root = &InternalNode{
 						Keys:     Keys{rightKey},
-						Pointers: []node{leftNode, rightNode},
+						Pointers: []node{leftNode, rightNod},
 					}
 					break
 				}
-
-				// TODO: special case if top's right most pointer is the one that is in the stack
-
 			} else {
 				break
 			}
@@ -256,23 +196,28 @@ func (tree *BTree) Insert(key Key, value interface{}) {
 }
 
 func (tree BTree) Find(key Key) interface{} {
-	res, _ := tree.Root.findAndGetStack(key, []node{})
+	res, _ := tree.Root.findAndGetStack(key, []NodeIndexPair{})
 	return res
 }
 
-func (n *InternalNode) findAndGetStack(key Key, stackIn []node) (value interface{}, stackOut []node) {
+type NodeIndexPair struct {
+	Node  node
+	Index int // pointer index for internal nodes and value index for leaf nodes
+}
+
+func (n *InternalNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair) {
 	i, found := n.Keys.find(key)
 	if found {
 		i++
 	}
-	stackOut = append(stackIn, n)
+	stackOut = append(stackIn, NodeIndexPair{n, i})
 	res, stackOut := n.Pointers[i].findAndGetStack(key, stackOut)
 	return res, stackOut
 }
 
-func (n *LeafNode) findAndGetStack(key Key, stackIn []node) (value interface{}, stackOut []node) {
+func (n *LeafNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair) {
 	i, found := n.keys.find(key)
-	stackOut = append(stackIn, n)
+	stackOut = append(stackIn, NodeIndexPair{n, i})
 	if !found {
 		return nil, stackOut
 	}
@@ -280,27 +225,58 @@ func (n *LeafNode) findAndGetStack(key Key, stackIn []node) (value interface{}, 
 }
 
 func (tree BTree) Print() {
-	arr := make([]node, 0, 2)
-	arr = append(arr, tree.Root)
-	//arr := tree.Root.Pointers
-	arr = append(arr, nil)
-	for i := 0; i < len(arr); i++ {
-		if arr[i] != nil && reflect.TypeOf(arr[i]) == reflect.TypeOf(newLeafNode()) {
+	queue := make([]node, 0, 2)
+	queue = append(queue, tree.Root)
+	//queue := tree.Root.Pointers
+	queue = append(queue, nil)
+	for i := 0; i < len(queue); i++ {
+		if queue[i] != nil && reflect.TypeOf(queue[i]) == reflect.TypeOf(newLeafNode()) {
 			break
 		}
-		if arr[i] == nil {
-			arr = append(arr, nil)
+		if queue[i] == nil {
+			queue = append(queue, nil)
 			continue
 		}
-		node := arr[i].(*InternalNode)
+		node := queue[i].(*InternalNode)
 
-		arr = append(arr, node.Pointers...)
+		queue = append(queue, node.Pointers...)
 	}
-	for _, n := range arr {
+	for _, n := range queue {
 		if n != nil {
 			n.PrintNode()
 		} else {
 			fmt.Print("\n ### \n")
 		}
+	}
+}
+
+func (tree BTree) Print2() {
+	queue := make([]node, 0, 2)
+	queue = append(queue, tree.Root)
+	//queue := tree.Root.Pointers
+	queue = append(queue, nil)
+	for true {
+		top := queue[0]
+		queue = queue[1:]
+
+		if top != nil {
+			top.PrintNode()
+		} else {
+			fmt.Print("\n ### \n")
+		}
+
+		if len(queue) == 0 {
+			break
+		}
+
+		if top != nil && reflect.TypeOf(top) == reflect.TypeOf(newLeafNode()) {
+			continue
+		}
+		if top == nil {
+			queue = append(queue, nil)
+			continue
+		}
+		node := top.(*InternalNode)
+		queue = append(queue, node.Pointers...)
 	}
 }

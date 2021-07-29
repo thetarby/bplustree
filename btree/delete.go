@@ -1,5 +1,7 @@
 package btree
 
+import "fmt"
+
 func (n *InternalNode) MergeNode(rightNode *InternalNode, middlePointer node) (mergedNode *InternalNode) {
 	n.Keys = append(n.Keys, rightNode.Keys...)
 	n.Pointers[len(n.Pointers)-1] = middlePointer
@@ -86,18 +88,24 @@ func (n *LeafNode) DeleteAt(index int) {
 }
 
 func (tree *BTree) Delete(key Key) bool {
-	var stack = make([]node, 0, 0)
+	var stack = make([]NodeIndexPair, 0, 0)
 	var i interface{}
 	i, stack = tree.Root.findAndGetStack(key, stack)
 	if i == nil {
 		return false
 	}
 
-	leafNode := stack[len(stack)-1].(*LeafNode)
+	leafNode := stack[len(stack)-1].Node.(*LeafNode)
 	index, _ := leafNode.keys.find(key)
 	leafNode.DeleteAt(index)
 	stack = stack[:len(stack)-1]
-	top := stack[len(stack)-1].(*InternalNode)
+	top := stack[len(stack)-1].Node.(*InternalNode)
+
+	for _, pair := range stack {
+		if pair.Index > 0 && pair.Node.(*InternalNode).Keys[pair.Index-1] == key {
+			fmt.Println("Should be updated")
+		}
+	}
 
 	if len(leafNode.values) < (tree.degree)/2 {
 		// should merge or redistribute
@@ -116,13 +124,13 @@ func (tree *BTree) Delete(key Key) bool {
 		}
 
 		for len(stack) > 0 {
-			top := stack[len(stack)-1].(*InternalNode)
+			top := stack[len(stack)-1].Node.(*InternalNode)
 			stack = stack[:len(stack)-1]
 			if len(stack) == 0 {
 				// if no parent left in stack it is done
 				return true
 			}
-			parent := stack[len(stack)-1].(*InternalNode)
+			parent := stack[len(stack)-1].Node.(*InternalNode)
 			index, _ = top.Keys.find(key)
 
 			if len(top.Keys) < (tree.degree)/2 {
@@ -130,10 +138,10 @@ func (tree *BTree) Delete(key Key) bool {
 				indexAtParent, _ := parent.Keys.find(key)
 				var rightSibling, leftSibling, merged *InternalNode
 				if indexAtParent > 0 {
-					rightSibling = parent.Pointers[indexAtParent-1].(*InternalNode)
+					leftSibling = parent.Pointers[indexAtParent-1].(*InternalNode)
 				}
 				if indexAtParent+1 < len(parent.Pointers) {
-					leftSibling = parent.Pointers[indexAtParent+1].(*InternalNode)
+					rightSibling = parent.Pointers[indexAtParent+1].(*InternalNode)
 				}
 
 				//try redistribute

@@ -12,7 +12,7 @@ func (key myInt) Less(than btree.Key) bool {
 }
 
 func main() {
-	main2()
+	main3()
 }
 
 func main1() {
@@ -72,4 +72,14 @@ func main2() {
 	fmt.Println(res)
 
 	//leftNode.PrintNode()
+}
+
+func main3() {
+	tree := btree.NewBtree(4)
+	for _, val := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10} {
+		tree.Insert(myInt(val), "selam")
+		fmt.Println("new tree: !!!")
+		tree.Print()
+	}
+
 }
