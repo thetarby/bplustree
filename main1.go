@@ -12,7 +12,7 @@ func (key myInt) Less(than btree.Key) bool {
 }
 
 func main() {
-	main3()
+	main2()
 }
 
 func main1() {

@@ -26,6 +26,7 @@ type node interface {
 	findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair)
 	SplitNode(index int) (left node, keyAtLeft Key, keyAtRight Key)
 	PrintNode()
+	IsOverFlow(degree int) bool
 }
 
 type InternalNode struct {
@@ -95,7 +96,14 @@ func (n *InternalNode) PrintNode() {
 		fmt.Printf("%d | ", n.Keys[i])
 	}
 	fmt.Printf(")    ")
+}
 
+func (n *LeafNode) IsOverFlow(degree int) bool {
+	return len(n.values) == degree
+}
+
+func (n *InternalNode) IsOverFlow(degree int) bool {
+	return len(n.Pointers) == degree+1
 }
 
 func (n *InternalNode) truncate(index int) {
@@ -163,36 +171,31 @@ func (tree *BTree) Insert(key Key, value interface{}) {
 	leafNode := stack[len(stack)-1].Node.(*LeafNode)
 	index, _ := leafNode.keys.find(key)
 	leafNode.leafInsertAt(index, key, value)
-	stack = stack[:len(stack)-1]
 
-	if len(leafNode.values) == tree.degree {
-		var rightNod node
-		var rightKey Key
+	var leftNode, rightNod node
+	var rightKey Key
 
-		rightNod, _, rightKey = leafNode.SplitNode(len(leafNode.keys) / 2)
-		var leftNode node = leafNode
-		for len(stack) > 0 {
-			top := stack[len(stack)-1].Node.(*InternalNode)
-			stack = stack[:len(stack)-1]
-
-			i, _ := top.Keys.find(key)
-			top.internalInsertAt(i, rightKey, rightNod)
-			if len(top.Pointers) == tree.degree+1 {
-				rightNod, _, rightKey = top.SplitNode((len(top.Pointers) - 1) / 2)
-				leftNode = top
-				// if top is root node special case, create new root
-				if top == tree.Root {
-					tree.Root = &InternalNode{
-						Keys:     Keys{rightKey},
-						Pointers: []node{leftNode, rightNod},
-					}
-					break
+	for len(stack) > 0 {
+		popped := stack[len(stack)-1].Node
+		stack = stack[:len(stack)-1]
+		if popped.IsOverFlow(tree.degree) {
+			rightNod, _, rightKey = popped.SplitNode((tree.degree) / 2)
+			if popped == tree.Root {
+				leftNode = popped
+				tree.Root = &InternalNode{
+					Keys:     Keys{rightKey},
+					Pointers: []node{leftNode, rightNod},
 				}
-			} else {
 				break
 			}
+			topOfStack := stack[len(stack)-1].Node.(*InternalNode)
+			i, _ := topOfStack.Keys.find(key)
+			topOfStack.internalInsertAt(i, rightKey, rightNod)
+		} else {
+			break
 		}
 	}
+
 }
 
 func (tree BTree) Find(key Key) interface{} {
