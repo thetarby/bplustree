@@ -1,7 +1,5 @@
 package btree
 
-import "fmt"
-
 func (n *InternalNode) MergeNode(rightNode *InternalNode, middlePointer node) (mergedNode *InternalNode) {
 	n.Keys = append(n.Keys, rightNode.Keys...)
 	n.Pointers[len(n.Pointers)-1] = middlePointer
@@ -100,12 +98,6 @@ func (tree *BTree) Delete(key Key) bool {
 	leafNode.DeleteAt(index)
 	stack = stack[:len(stack)-1]
 	top := stack[len(stack)-1].Node.(*InternalNode)
-
-	for _, pair := range stack {
-		if pair.Index > 0 && pair.Node.(*InternalNode).Keys[pair.Index-1] == key {
-			fmt.Println("Should be updated")
-		}
-	}
 
 	if len(leafNode.values) < (tree.degree)/2 {
 		// should merge or redistribute

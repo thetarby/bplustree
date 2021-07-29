@@ -62,16 +62,6 @@ func main2() {
 	tree.Delete(myInt(1))
 	fmt.Println("After Delete 1 !!!!!!!!!!!!!!!!!!!!!!!!!!!")
 	tree.Print()
-
-	//leftNode, _ , _ := tree.LeafRoot.SplitNode(1)
-	tree.Root.PrintNode()
-	tree.Root.Pointers[0].(*btree.LeafNode).PrintNode()
-	tree.Root.Pointers[1].(*btree.LeafNode).PrintNode()
-
-	res := tree.Find(myInt(7))
-	fmt.Println(res)
-
-	//leftNode.PrintNode()
 }
 
 func main3() {
