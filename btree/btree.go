@@ -82,22 +82,6 @@ func newLeafNode() (n *LeafNode) {
 	}
 }
 
-func (n *LeafNode) PrintNode() {
-	fmt.Printf("Node( ")
-	for i := 0; i < len(n.keys); i++ {
-		fmt.Printf("%d | ", n.keys[i])
-	}
-	fmt.Printf(")    ")
-}
-
-func (n *InternalNode) PrintNode() {
-	fmt.Printf("Node( ")
-	for i := 0; i < len(n.Keys); i++ {
-		fmt.Printf("%d | ", n.Keys[i])
-	}
-	fmt.Printf(")    ")
-}
-
 func (n *LeafNode) IsOverFlow(degree int) bool {
 	return len(n.values) == degree
 }
@@ -230,7 +214,6 @@ func (n *LeafNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value inte
 func (tree BTree) Print() {
 	queue := make([]node, 0, 2)
 	queue = append(queue, tree.Root)
-	//queue := tree.Root.Pointers
 	queue = append(queue, nil)
 	for i := 0; i < len(queue); i++ {
 		if queue[i] != nil && reflect.TypeOf(queue[i]) == reflect.TypeOf(newLeafNode()) {
@@ -253,33 +236,18 @@ func (tree BTree) Print() {
 	}
 }
 
-func (tree BTree) Print2() {
-	queue := make([]node, 0, 2)
-	queue = append(queue, tree.Root)
-	//queue := tree.Root.Pointers
-	queue = append(queue, nil)
-	for true {
-		top := queue[0]
-		queue = queue[1:]
-
-		if top != nil {
-			top.PrintNode()
-		} else {
-			fmt.Print("\n ### \n")
-		}
-
-		if len(queue) == 0 {
-			break
-		}
-
-		if top != nil && reflect.TypeOf(top) == reflect.TypeOf(newLeafNode()) {
-			continue
-		}
-		if top == nil {
-			queue = append(queue, nil)
-			continue
-		}
-		node := top.(*InternalNode)
-		queue = append(queue, node.Pointers...)
+func (n *LeafNode) PrintNode() {
+	fmt.Printf("Node( ")
+	for i := 0; i < len(n.keys); i++ {
+		fmt.Printf("%d | ", n.keys[i])
 	}
+	fmt.Printf(")    ")
+}
+
+func (n *InternalNode) PrintNode() {
+	fmt.Printf("Node( ")
+	for i := 0; i < len(n.Keys); i++ {
+		fmt.Printf("%d | ", n.Keys[i])
+	}
+	fmt.Printf(")    ")
 }
