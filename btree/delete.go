@@ -157,7 +157,6 @@ func (tree *BTree) Delete(key Key) bool {
 				if top == tree.Root && len(top.Keys) == 0 {
 					tree.Root = merged
 				}
-
 			}
 		}
 	}

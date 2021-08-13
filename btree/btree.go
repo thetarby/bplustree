@@ -138,9 +138,9 @@ func (n *LeafNode) SplitNode(index int) (rightNode node, keyAtLeft Key, keyAtRig
 	right.values = append(right.values, n.values[index:]...)
 	n.keys = n.keys[:index]
 	n.values = n.values[:index]
+	right.Right = n.Right
 	n.Right = right
 	right.Left = n
-	right.Right = n.Right
 	return right, keyAtLeft, keyAtRight
 }
 
