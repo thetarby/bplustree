@@ -28,7 +28,7 @@ func TestDelete_Should_Decrease_Height_Size_When_Root_Is_Empty(t *testing.T) {
 }
 
 func TestDelete_Should_Decrease_Height_Size_When_Root_Is_Empty_3(t *testing.T) {
-	tree := NewBtreeWithPager(4, NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}})
+	tree := NewBtreeWithPager(4, NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}, KeySize: 8})
 	for _, val := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10} {
 		tree.Insert(PersistentKey(val), SlotPointer{
 			PageId:  10,
@@ -80,7 +80,7 @@ func TestDelete_Should_Decrease_Height_Size_When_Root_Is_Empty_2(t *testing.T) {
 }
 
 func TestPersistentDeleted_Items_Should_Not_Be_Found(t *testing.T) {
-	tree := NewBtreeWithPager(100, &NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}})
+	tree := NewBtreeWithPager(100, &NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}, KeySize: 8})
 	log.SetOutput(ioutil.Discard)
 	n := 100000
 	for _, i := range rand.Perm(n) {
@@ -138,7 +138,7 @@ func TestDelete_Internals(t *testing.T) {
 }
 
 func TestDelete_Internals2(t *testing.T) {
-	tree := NewBtreeWithPager(4, NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}})
+	tree := NewBtreeWithPager(4, NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}, KeySize: 8})
 	p := SlotPointer{
 		PageId:  10,
 		SlotIdx: 10,

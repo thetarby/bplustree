@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 )
 
-/* InternalNode and LeafNode structures should extend a PersistentPage implementation to be able to be disk persistent */
+/* InternalNode and SlottedPage structures should extend a PersistentPage implementation to be able to be disk persistent */
 
 type PersistentPage interface {
 	GetData() []byte
@@ -30,6 +30,10 @@ type Pager interface {
 	// GetNode returns a Node given a Pointer. Should be able to deserialize a node from byte arr and should be able to
 	// recognize if it is an InternalNode or LeafNode and return the correct type.
 	GetNode(p Pointer) Node
+
+	Unpin(n Node, isDirty bool)
+
+	UnpinByPointer(p Pointer, isDirty bool)
 }
 
 /* NOOP IMPLEMENTATION*/
@@ -56,6 +60,10 @@ func (n NoopPersistentPage) GetPageId() Pointer {
 
 type NoopPager struct {
 }
+
+func (b *NoopPager) UnpinByPointer(p Pointer, isDirty bool) {}
+
+func (b *NoopPager) Unpin(n Node, isDirty bool) {}
 
 var lastPageId Pointer = 0
 
@@ -95,7 +103,12 @@ func (b *NoopPager) GetNode(p Pointer) Node {
 
 type NoopPersistentPager struct {
 	KeySerializer KeySerializer
+	KeySize       int
 }
+
+func (n2 NoopPersistentPager) UnpinByPointer(p Pointer, isDirty bool) {}
+
+func (n2 NoopPersistentPager) Unpin(n Node, isDirty bool) {}
 
 func (n NoopPersistentPager) NewInternalNode(firstPointer Pointer) Node {
 	h := PersistentNodeHeader{
@@ -106,7 +119,7 @@ func (n NoopPersistentPager) NewInternalNode(firstPointer Pointer) Node {
 	// create a new node
 	// TODO: should use an adam akıllı pager
 	lastPageId++
-	node := PersistentInternalNode{PersistentPage: NewNoopPersistentPage(lastPageId), pager: n, serializer: n.KeySerializer}
+	node := PersistentInternalNode{PersistentPage: NewNoopPersistentPage(lastPageId), pager: n, serializer: n.KeySerializer, keySize: n.KeySize}
 
 	// write header
 	data := node.GetData()
@@ -119,7 +132,7 @@ func (n NoopPersistentPager) NewInternalNode(firstPointer Pointer) Node {
 	asByte := buf.Bytes()
 	copy(data[PersistentNodeHeaderSize:], asByte)
 
-	mapping[lastPageId] = &node
+	mapping2[lastPageId] = &node
 	return &node
 }
 
@@ -132,20 +145,18 @@ func (n NoopPersistentPager) NewLeafNode() Node {
 	// create a new node
 	// TODO: should use an adam akıllı pager
 	lastPageId++
-	node := PersistentLeafNode{PersistentPage: NewNoopPersistentPage(lastPageId), pager: n, serializer: n.KeySerializer}
+	node := PersistentLeafNode{PersistentPage: NewNoopPersistentPage(lastPageId), pager: n, serializer: n.KeySerializer, keySize: n.KeySize}
 
 	// write header
 	data := node.GetData()
 	WritePersistentNodeHeader(&h, data)
 
-	mapping[lastPageId] = &node
+	mapping2[lastPageId] = &node
 	return &node
 }
 
 var mapping2 = make(map[Pointer]Node)
 
 func (n NoopPersistentPager) GetNode(p Pointer) Node {
-	return mapping[p]
+	return mapping2[p]
 }
-
-/* REAL IMPLEMENTATION */

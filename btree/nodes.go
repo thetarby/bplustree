@@ -24,10 +24,7 @@ func (k Keys) find(item Key) (index int, found bool) {
 }
 
 type NodeIndexPair struct {
-	Node Pointer // TODO: this should be pointer if not you should be careful for buffer pool to flush content and replace it
-	// in that case content of the node changes and it is all garbage. If you guarantee to pin then its content
-	// cannot be replaced and it wont be a problem. Which way? pointer or pin or both maybe. In the future you will have to pin
-	// anyway but maybe it is best to both pin pages and still keep a page pointer instead of a pointer to actual data in buffer pool frames.
+	Node  Pointer
 	Index int // pointer index for internal nodes and value index for leaf nodes
 }
 
@@ -249,7 +246,7 @@ func (n *InternalNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value 
 func (n *LeafNode) PrintNode() {
 	fmt.Printf("Node( ")
 	for i := 0; i < len(n.Keys); i++ {
-		fmt.Printf("%d | ", n.Keys[i])
+		fmt.Printf("%v | ", n.Keys[i])
 	}
 	fmt.Printf(")    ")
 }
@@ -257,7 +254,7 @@ func (n *LeafNode) PrintNode() {
 func (n *InternalNode) PrintNode() {
 	fmt.Printf("Node( ")
 	for i := 0; i < len(n.Keys); i++ {
-		fmt.Printf("%d | ", n.Keys[i])
+		fmt.Printf("%v | ", n.Keys[i])
 	}
 	fmt.Printf(")    ")
 }
