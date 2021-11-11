@@ -24,9 +24,11 @@ func (k Keys) find(item Key) (index int, found bool) {
 
 type node interface {
 	findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair)
+	findKey(key Key) (index int, found bool)
 	SplitNode(index int) (left node, keyAtLeft Key, keyAtRight Key)
 	PrintNode()
 	IsOverFlow(degree int) bool
+	InsertAt(index int, key Key, val interface{})
 }
 
 type InternalNode struct {
@@ -82,6 +84,14 @@ func newLeafNode() (n *LeafNode) {
 	}
 }
 
+func (n *LeafNode) findKey(key Key) (index int, found bool) {
+	return n.Keys.find(key)
+}
+
+func (n *InternalNode) findKey(key Key) (index int, found bool) {
+	return n.Keys.find(key)
+}
+
 func (n *LeafNode) IsOverFlow(degree int) bool {
 	return len(n.Values) == degree
 }
@@ -95,17 +105,17 @@ func (n *InternalNode) truncate(index int) {
 	n.Pointers = n.Pointers[:index+1]
 }
 
-func (n *InternalNode) internalInsertAt(index int, key Key, pointer node) {
+func (n *InternalNode) InsertAt(index int, key Key, pointer interface{}) {
 	n.Keys = append(n.Keys, key)
 	copy(n.Keys[index+1:], n.Keys[index:])
 	n.Keys[index] = key
 
-	n.Pointers = append(n.Pointers, pointer)
+	n.Pointers = append(n.Pointers, pointer.(node))
 	copy(n.Pointers[index+2:], n.Pointers[index+1:])
-	n.Pointers[index+1] = pointer
+	n.Pointers[index+1] = pointer.(node)
 }
 
-func (n *LeafNode) leafInsertAt(index int, key Key, value interface{}) {
+func (n *LeafNode) InsertAt(index int, key Key, value interface{}) {
 	n.Keys = append(n.Keys, key)
 	copy(n.Keys[index+1:], n.Keys[index:])
 	n.Keys[index] = key
@@ -152,34 +162,29 @@ func (tree *BTree) Insert(key Key, value interface{}) {
 		panic("key already exists")
 	}
 
-	leafNode := stack[len(stack)-1].Node.(*LeafNode)
-	index, _ := leafNode.Keys.find(key)
-	leafNode.leafInsertAt(index, key, value)
-
-	var leftNode, rightNod node
-	var rightKey Key
+	var rightNod = value
+	var rightKey = key
 
 	for len(stack) > 0 {
+		topOfStack := stack[len(stack)-1].Node
+		i, _ := topOfStack.findKey(key)
+		topOfStack.InsertAt(i, rightKey, rightNod)
+
 		popped := stack[len(stack)-1].Node
 		stack = stack[:len(stack)-1]
 		if popped.IsOverFlow(tree.degree) {
 			rightNod, _, rightKey = popped.SplitNode((tree.degree) / 2)
 			if popped == tree.Root {
-				leftNode = popped
+				leftNode := popped
 				tree.Root = &InternalNode{
 					Keys:     Keys{rightKey},
-					Pointers: []node{leftNode, rightNod},
-				}
-				break
+					Pointers: []node{leftNode, rightNod.(*InternalNode)},
+				} // if it is root it should be the last item in the stack so loop will be breaked
 			}
-			topOfStack := stack[len(stack)-1].Node.(*InternalNode)
-			i, _ := topOfStack.Keys.find(key)
-			topOfStack.internalInsertAt(i, rightKey, rightNod)
 		} else {
 			break
 		}
 	}
-
 }
 
 func (tree *BTree) Find(key Key) interface{} {
