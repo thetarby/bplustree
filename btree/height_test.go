@@ -8,22 +8,22 @@ import (
 func TestHeight_Should_Return_Correct_Height(t *testing.T) {
 	tests := []struct {
 		tree     *BTree
-		toInsert []myInt
+		toInsert []MyInt
 		expected int
 	}{
 		{
 			tree:     NewBtree(3),
-			toInsert: []myInt{myInt(1), myInt(2), myInt(3), myInt(4), myInt(5), myInt(6), myInt(7), myInt(8), myInt(9)},
+			toInsert: []MyInt{MyInt(1), MyInt(2), MyInt(3), MyInt(4), MyInt(5), MyInt(6), MyInt(7), MyInt(8), MyInt(9)},
 			expected: 4,
 		},
 		{
 			tree:     NewBtree(4),
-			toInsert: []myInt{myInt(1), myInt(2), myInt(3), myInt(4)},
+			toInsert: []MyInt{MyInt(1), MyInt(2), MyInt(3), MyInt(4)},
 			expected: 2,
 		},
 		{
 			tree:     NewBtree(5),
-			toInsert: []myInt{myInt(1), myInt(2), myInt(3), myInt(4), myInt(5)},
+			toInsert: []MyInt{MyInt(1), MyInt(2), MyInt(3), MyInt(4), MyInt(5)},
 			expected: 2,
 		},
 	}
