@@ -2,6 +2,9 @@ package btree
 
 import (
 	"fmt"
+	"io/ioutil"
+	"log"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,6 +36,7 @@ func TestDelete_Should_Decrease_Height_Size_When_Root_Is_Empty_3(t *testing.T) {
 		})
 	}
 	var stack []NodeIndexPair
+	tree.Print()
 	res, stack := tree.GetRoot().findAndGetStack(PersistentKey(1), stack)
 	assert.Len(t, stack, 3)
 	assert.Equal(t, SlotPointer{
@@ -43,7 +47,7 @@ func TestDelete_Should_Decrease_Height_Size_When_Root_Is_Empty_3(t *testing.T) {
 	tree.Delete(PersistentKey(1))
 	stack = []NodeIndexPair{}
 	_, stack = tree.GetRoot().findAndGetStack(PersistentKey(1), stack)
-
+	tree.Print()
 	assert.Len(t, stack, 2)
 }
 
@@ -77,17 +81,16 @@ func TestDelete_Should_Decrease_Height_Size_When_Root_Is_Empty_2(t *testing.T) {
 
 func TestPersistentDeleted_Items_Should_Not_Be_Found(t *testing.T) {
 	tree := NewBtreeWithPager(100, &NoopPersistentPager{})
-
-	//arr := rand.Perm(1000)
-	for i := 0; i < 10000; i++ {
+	log.SetOutput(ioutil.Discard)
+	n := 100000
+	for _, i := range rand.Perm(n) {
 		tree.Insert(PersistentKey(i), SlotPointer{
 			PageId:  int64(i),
 			SlotIdx: int16(i),
 		})
-		println("inserted %v", i)
 	}
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < n; i++ {
 		val := tree.Find(PersistentKey(i))
 		if val == nil {
 			tree.Find(PersistentKey(i))
@@ -98,7 +101,6 @@ func TestPersistentDeleted_Items_Should_Not_Be_Found(t *testing.T) {
 			SlotIdx: int16(i),
 		}, val.(SlotPointer))
 		tree.Delete(PersistentKey(i))
-		println("deleted %v", i)
 
 		val = tree.Find(PersistentKey(i))
 		assert.Nil(t, val)

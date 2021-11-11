@@ -263,11 +263,6 @@ func (p *PersistentLeafNode) Redistribute(rightNode Node, parent Node) {
 	for i = 0; parent.GetValueAt(i).(Pointer) != p.GetPageId(); i++ {
 	}
 
-	leftData := p.GetData()
-	rightData := rightNode.(*PersistentLeafNode).GetData()
-	leftHeader := ReadPersistentNodeHeader(leftData)
-	rightHeader := ReadPersistentNodeHeader(rightData)
-
 	totalKeys := p.Keylen() + rightNode.Keylen()
 	totalKeysInLeftAfterRedistribute := totalKeys / 2
 	totalKeysInRightAfterRedistribute := totalKeys - totalKeysInLeftAfterRedistribute
@@ -275,18 +270,16 @@ func (p *PersistentLeafNode) Redistribute(rightNode Node, parent Node) {
 	if p.Keylen() < totalKeysInLeftAfterRedistribute {
 		// insert new keys to left
 		diff := totalKeysInLeftAfterRedistribute - p.Keylen()
-		copy(leftData[PersistentNodeHeaderSize+(SlotPointerSize+KeySize)*p.Keylen():], rightData[PersistentNodeHeaderSize:PersistentNodeHeaderSize+(SlotPointerSize+KeySize)*diff])
-		leftHeader.KeyLen += int16(diff)
-		rightHeader.KeyLen -= int16(diff)
-		WritePersistentNodeHeader(leftHeader, leftData)
-		WritePersistentNodeHeader(rightHeader, rightData)
+		for i := 0; i < diff; i++ {
+			p.InsertAt(p.Keylen(), rightNode.GetKeyAt(0), rightNode.GetValueAt(0))
+			rightNode.DeleteAt(0)
+		}
 	} else {
 		diff := totalKeysInRightAfterRedistribute - rightNode.Keylen()
-		copy(rightData[PersistentNodeHeaderSize+(SlotPointerSize+KeySize)*rightNode.Keylen():], leftData[PersistentNodeHeaderSize:PersistentNodeHeaderSize+(SlotPointerSize+KeySize)*diff])
-		leftHeader.KeyLen -= int16(diff)
-		rightHeader.KeyLen += int16(diff)
-		WritePersistentNodeHeader(leftHeader, leftData)
-		WritePersistentNodeHeader(rightHeader, rightData)
+		for i := 0; i < diff; i++ {
+			rightNode.InsertAt(0, p.GetKeyAt(p.Keylen()-1), p.GetValueAt(p.Keylen()-1))
+			p.DeleteAt(p.Keylen() - 1)
+		}
 	}
 
 	parent.setKeyAt(i, rightNode.GetKeyAt(0))
