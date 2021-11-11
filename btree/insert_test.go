@@ -1,7 +1,10 @@
 package btree
 
 import (
+	"math/rand"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -34,6 +37,51 @@ func TestInsert_Should_Split_Root_When_It_Has_M_Keys(t *testing.T) {
 	assert.Len(t, stack, 2)
 	assert.Equal(t, "5", res)
 	assert.Equal(t, myInt(3), tree.Root.Keys[0])
+}
+
+func TestInsert_Or_Replace_Should_Return_False_When_Key_Exists(t *testing.T) {
+	tree := NewBtree(3)
+	for i := 0; i < 1000; i++ {
+		tree.Insert(myInt(i), strconv.Itoa(i))
+	}
+
+	isInserted := tree.InsertOrReplace(myInt(500), "new_500")
+
+	assert.False(t, isInserted)
+}
+
+func TestInsert_Or_Replace_Should_Replace_Value_When_Key_Exists(t *testing.T) {
+	tree := NewBtree(3)
+	for i := 0; i < 1000; i++ {
+		tree.Insert(myInt(i), strconv.Itoa(i))
+	}
+
+	tree.InsertOrReplace(myInt(500), "new_500")
+	val := tree.Find(myInt(500))
+
+	assert.Equal(t, "new_500", val.(string))
+}
+
+func TestAll_Inserts_Should_Be_Found_By_Find_Method(t *testing.T) {
+	tree := NewBtree(3)
+	arr := make([]int, 0)
+	for i := 0; i < 1000; i++ {
+		arr = append(arr, i)
+	}
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(arr), func(i, j int) { arr[i], arr[j] = arr[j], arr[i] })
+
+	for _, item := range arr {
+		tree.Insert(myInt(item), strconv.Itoa(item))
+	}
+
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(arr), func(i, j int) { arr[i], arr[j] = arr[j], arr[i] })
+	for _, item := range arr {
+		val := tree.Find(myInt(item))
+		assert.NotNil(t, val)
+		assert.Equal(t, strconv.Itoa(item), val.(string))
+	}
 }
 
 func TestInsert_Internals(t *testing.T) {

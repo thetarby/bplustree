@@ -1,13 +1,5 @@
 package btree
 
-func (n *InternalNode) MergeNode(rightNode *InternalNode, middlePointer node) (mergedNode *InternalNode) {
-	n.Keys = append(n.Keys, rightNode.Keys...)
-	n.Pointers[len(n.Pointers)-1] = middlePointer
-	n.Pointers = append(n.Pointers, rightNode.Pointers...)
-
-	return n
-}
-
 func (leftNode *LeafNode) Redistribute(rightNode *LeafNode, parent *InternalNode) {
 	var i int
 	for i := 0; parent.Pointers[i] != leftNode; i++ {
@@ -155,7 +147,7 @@ func (tree *BTree) Delete(key Key) bool {
 					merged = top.MergeNodes(rightSibling, parent)
 				} else {
 					if leftSibling == nil {
-						panic("Both siblings are null for an internal node! This should not be possible.")
+						panic("Both siblings are null for an internal Node! This should not be possible.")
 					}
 					merged = leftSibling.MergeNodes(top, parent)
 				}
