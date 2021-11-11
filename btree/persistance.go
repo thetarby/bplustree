@@ -94,6 +94,7 @@ func (b *NoopPager) GetNode(p Pointer) Node {
 }
 
 type NoopPersistentPager struct {
+	KeySerializer KeySerializer
 }
 
 func (n NoopPersistentPager) NewInternalNode(firstPointer Pointer) Node {
@@ -105,7 +106,7 @@ func (n NoopPersistentPager) NewInternalNode(firstPointer Pointer) Node {
 	// create a new node
 	// TODO: should use an adam akıllı pager
 	lastPageId++
-	node := PersistentInternalNode{PersistentPage: NewNoopPersistentPage(lastPageId), pager: n}
+	node := PersistentInternalNode{PersistentPage: NewNoopPersistentPage(lastPageId), pager: n, serializer: n.KeySerializer}
 
 	// write header
 	data := node.GetData()
@@ -131,7 +132,7 @@ func (n NoopPersistentPager) NewLeafNode() Node {
 	// create a new node
 	// TODO: should use an adam akıllı pager
 	lastPageId++
-	node := PersistentLeafNode{PersistentPage: NewNoopPersistentPage(lastPageId), pager: n}
+	node := PersistentLeafNode{PersistentPage: NewNoopPersistentPage(lastPageId), pager: n, serializer: n.KeySerializer}
 
 	// write header
 	data := node.GetData()

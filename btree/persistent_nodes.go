@@ -13,6 +13,12 @@ func (p PersistentKey) Less(than Key) bool {
 	return p < than.(PersistentKey)
 }
 
+type StringKey string
+
+func (p StringKey) Less(than Key) bool {
+	return p < than.(StringKey)
+}
+
 type SlotPointer struct {
 	PageId  int64
 	SlotIdx int16
@@ -37,7 +43,8 @@ type PersistentNodeHeader struct {
 
 type PersistentLeafNode struct {
 	PersistentPage
-	pager Pager
+	pager      Pager
+	serializer KeySerializer
 }
 
 func ReadPersistentNodeHeader(data []byte) *PersistentNodeHeader {
@@ -107,10 +114,8 @@ func (p *PersistentLeafNode) shiftKeyValueToLeftAt(n int) {
 func (p *PersistentLeafNode) setKeyAt(idx int, key Key) { // TODO use persistentKey
 	data := p.GetData()
 	offset := idx * (KeySize + SlotPointerSize)
-	buf := bytes.Buffer{}
-	err := binary.Write(&buf, binary.BigEndian, key.(PersistentKey))
+	asByte, err := p.serializer.Serialize(key)
 	CheckErr(err)
-	asByte := buf.Bytes()
 	copy(data[PersistentNodeHeaderSize+offset:], asByte)
 }
 
@@ -127,9 +132,7 @@ func (p *PersistentLeafNode) setValueAt(idx int, val interface{}) {
 func (p *PersistentLeafNode) GetKeyAt(idx int) Key {
 	data := p.GetData()
 	offset := idx * (KeySize + SlotPointerSize)
-	reader := bytes.NewReader(data[PersistentNodeHeaderSize+offset:])
-	var key PersistentKey
-	err := binary.Read(reader, binary.BigEndian, &key)
+	key, err := p.serializer.Deserialize(data[PersistentNodeHeaderSize+offset:])
 	CheckErr(err)
 
 	return key
@@ -293,6 +296,7 @@ func (p *PersistentLeafNode) IsUnderFlow(degree int) bool {
 type PersistentInternalNode struct {
 	PersistentPage
 	pager Pager
+	serializer KeySerializer
 }
 
 func NewPersistentInternalNode(firstPointer Pointer) *PersistentInternalNode {
@@ -387,12 +391,11 @@ func (p *PersistentInternalNode) shiftKeyValueToLeftAt(n int) {
 func (p *PersistentInternalNode) setKeyAt(idx int, key Key) {
 	data := p.GetData()
 	offset := idx * (KeySize + NodePointerSize)
-	buf := bytes.Buffer{}
-	err := binary.Write(&buf, binary.BigEndian, key.(PersistentKey))
+	pairBeginningOffset := PersistentNodeHeaderSize + NodePointerSize
+
+	asByte, err := p.serializer.Serialize(key)
 	CheckErr(err)
-	asByte := buf.Bytes()
-	pairBeginnigOffset := PersistentNodeHeaderSize + NodePointerSize
-	copy(data[pairBeginnigOffset+offset:], asByte)
+	copy(data[pairBeginningOffset+offset:], asByte)
 }
 
 func (p *PersistentInternalNode) setValueAt(idx int, val interface{}) {
@@ -416,9 +419,7 @@ func (p *PersistentInternalNode) GetKeyAt(idx int) Key {
 	data := p.GetData()
 	offset := idx * (KeySize + NodePointerSize)
 	pairBeginningOffset := PersistentNodeHeaderSize + NodePointerSize
-	reader := bytes.NewReader(data[pairBeginningOffset+offset:])
-	var key PersistentKey
-	err := binary.Read(reader, binary.BigEndian, &key)
+	key, err := p.serializer.Deserialize(data[pairBeginningOffset+offset:])
 	CheckErr(err)
 
 	return key

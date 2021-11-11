@@ -7,7 +7,7 @@ import (
 )
 
 func TestPersistent_Insert_Should_Split_Root_When_It_Has_M_Keys(t *testing.T) {
-	tree := NewBtreeWithPager(3, NoopPersistentPager{})
+	tree := NewBtreeWithPager(3, NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}})
 	p := SlotPointer{
 		PageId:  10,
 		SlotIdx: 10,
@@ -26,7 +26,7 @@ func TestPersistent_Insert_Should_Split_Root_When_It_Has_M_Keys(t *testing.T) {
 }
 
 func TestPersistentEvery_Inserted_Should_Be_Found(t *testing.T) {
-	tree := NewBtreeWithPager(80, NoopPersistentPager{})
+	tree := NewBtreeWithPager(80, NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}})
 	for i := 0; i < 10000; i++ {
 		tree.Insert(PersistentKey(i), SlotPointer{
 			PageId:  int64(i),
@@ -49,7 +49,7 @@ func TestPersistentEvery_Inserted_Should_Be_Found(t *testing.T) {
 }
 
 func TestPersistentInsert_Or_Replace_Should_Return_False_When_Key_Exists(t *testing.T) {
-	tree := NewBtreeWithPager(3, NoopPersistentPager{})
+	tree := NewBtreeWithPager(3, NoopPersistentPager{KeySerializer: &PersistentKeySerializer{}})
 	for i := 0; i < 1000; i++ {
 		tree.Insert(PersistentKey(i), SlotPointer{
 			PageId:  int64(i),
