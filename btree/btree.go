@@ -35,8 +35,8 @@ type InternalNode struct {
 }
 
 type LeafNode struct {
-	keys   Keys
-	values []interface{}
+	Keys   Keys
+	Values []interface{}
 	Right  *LeafNode
 	Left   *LeafNode
 }
@@ -48,17 +48,17 @@ type BTree struct {
 	LeafRoot *LeafNode
 }
 
-func NewBtree(degree int) BTree {
+func NewBtree(degree int) *BTree {
 	p := make([]node, 1, 2)
 	l := LeafNode{
-		keys:   make(Keys, 0, 2),
-		values: make([]interface{}, 0, 2),
+		Keys:   make(Keys, 0, 2),
+		Values: make([]interface{}, 0, 2),
 		Right:  nil,
 		Left:   nil,
 	}
 	p[0] = &l
 
-	return BTree{
+	return &BTree{
 		degree: degree,
 		length: 0,
 		Root: &InternalNode{
@@ -77,13 +77,13 @@ func newNode() (n *InternalNode) {
 
 func newLeafNode() (n *LeafNode) {
 	return &LeafNode{
-		keys:   make([]Key, 0, 2),
-		values: make([]interface{}, 0, 2),
+		Keys:   make([]Key, 0, 2),
+		Values: make([]interface{}, 0, 2),
 	}
 }
 
 func (n *LeafNode) IsOverFlow(degree int) bool {
-	return len(n.values) == degree
+	return len(n.Values) == degree
 }
 
 func (n *InternalNode) IsOverFlow(degree int) bool {
@@ -106,13 +106,13 @@ func (n *InternalNode) internalInsertAt(index int, key Key, pointer node) {
 }
 
 func (n *LeafNode) leafInsertAt(index int, key Key, value interface{}) {
-	n.keys = append(n.keys, key)
-	copy(n.keys[index+1:], n.keys[index:])
-	n.keys[index] = key
+	n.Keys = append(n.Keys, key)
+	copy(n.Keys[index+1:], n.Keys[index:])
+	n.Keys[index] = key
 
-	n.values = append(n.values, value)
-	copy(n.values[index+1:], n.values[index:])
-	n.values[index] = value
+	n.Values = append(n.Values, value)
+	copy(n.Values[index+1:], n.Values[index:])
+	n.Values[index] = value
 }
 
 func (n *InternalNode) SplitNode(index int) (rightNode node, keyAtLeft Key, keyAtRight Key) {
@@ -131,13 +131,13 @@ func (n *InternalNode) SplitNode(index int) (rightNode node, keyAtLeft Key, keyA
 
 func (n *LeafNode) SplitNode(index int) (rightNode node, keyAtLeft Key, keyAtRight Key) {
 	right := newLeafNode()
-	keyAtLeft = n.keys[index-1]
-	keyAtRight = n.keys[index]
+	keyAtLeft = n.Keys[index-1]
+	keyAtRight = n.Keys[index]
 
-	right.keys = append(right.keys, n.keys[index:]...)
-	right.values = append(right.values, n.values[index:]...)
-	n.keys = n.keys[:index]
-	n.values = n.values[:index]
+	right.Keys = append(right.Keys, n.Keys[index:]...)
+	right.Values = append(right.Values, n.Values[index:]...)
+	n.Keys = n.Keys[:index]
+	n.Values = n.Values[:index]
 	right.Right = n.Right
 	n.Right = right
 	right.Left = n
@@ -153,7 +153,7 @@ func (tree *BTree) Insert(key Key, value interface{}) {
 	}
 
 	leafNode := stack[len(stack)-1].Node.(*LeafNode)
-	index, _ := leafNode.keys.find(key)
+	index, _ := leafNode.Keys.find(key)
 	leafNode.leafInsertAt(index, key, value)
 
 	var leftNode, rightNod node
@@ -182,9 +182,23 @@ func (tree *BTree) Insert(key Key, value interface{}) {
 
 }
 
-func (tree BTree) Find(key Key) interface{} {
+func (tree *BTree) Find(key Key) interface{} {
 	res, _ := tree.Root.findAndGetStack(key, []NodeIndexPair{})
 	return res
+}
+
+func (tree *BTree) Height() int {
+	var currentNode node = tree.Root
+	acc := 0
+	for {
+		switch currentNode.(type) {
+		case *InternalNode:
+			currentNode = currentNode.(*InternalNode).Pointers[0]
+		case *LeafNode:
+			return acc + 1
+		}
+		acc++
+	}
 }
 
 type NodeIndexPair struct {
@@ -203,12 +217,12 @@ func (n *InternalNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value 
 }
 
 func (n *LeafNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair) {
-	i, found := n.keys.find(key)
+	i, found := n.Keys.find(key)
 	stackOut = append(stackIn, NodeIndexPair{n, i})
 	if !found {
 		return nil, stackOut
 	}
-	return n.values[i], stackOut
+	return n.Values[i], stackOut
 }
 
 func (tree BTree) Print() {
@@ -238,8 +252,8 @@ func (tree BTree) Print() {
 
 func (n *LeafNode) PrintNode() {
 	fmt.Printf("Node( ")
-	for i := 0; i < len(n.keys); i++ {
-		fmt.Printf("%d | ", n.keys[i])
+	for i := 0; i < len(n.Keys); i++ {
+		fmt.Printf("%d | ", n.Keys[i])
 	}
 	fmt.Printf(")    ")
 }

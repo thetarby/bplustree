@@ -9,35 +9,38 @@ func (n *InternalNode) MergeNode(rightNode *InternalNode, middlePointer node) (m
 }
 
 func (leftNode *LeafNode) Redistribute(rightNode *LeafNode, parent *InternalNode) {
-	keys := append(leftNode.keys, rightNode.keys...)
-	vals := append(leftNode.values, rightNode.values)
-
-	leftNode.keys = keys[:len(keys)/2]
-	leftNode.values = vals[:len(vals)/2]
-	rightNode.keys = keys[len(keys)/2:]
-	rightNode.values = vals[len(vals)/2:]
-
 	var i int
 	for i := 0; parent.Pointers[i] != leftNode; i++ {
 	}
 
-	parent.Keys[i] = rightNode.keys[0]
+	keys := append(leftNode.Keys, rightNode.Keys...)
+	vals := append(leftNode.Values, rightNode.Values...)
+
+	leftNode.Keys = keys[:len(keys)/2]
+	leftNode.Values = vals[:len(vals)/2]
+	rightNode.Keys = keys[len(keys)/2:]
+	rightNode.Values = vals[len(vals)/2:]
+
+	parent.Keys[i] = rightNode.Keys[0]
 }
 
 func (leftNode *InternalNode) Redistribute(rightNode *InternalNode, parent *InternalNode) {
-	keys := append(leftNode.Keys, rightNode.Keys...)
-	vals := append(leftNode.Pointers, rightNode.Pointers...)
-
-	leftNode.Keys = keys[:len(keys)/2]
-	leftNode.Pointers = vals[:len(vals)/2]
-	rightNode.Keys = keys[len(keys)/2:]
-	rightNode.Pointers = vals[len(vals)/2:]
-
 	var i int
 	for i := 0; parent.Pointers[i] != leftNode; i++ {
 	}
 
-	parent.Keys[i] = rightNode.Keys[0]
+	keys := append(leftNode.Keys, parent.Keys[i])
+	keys = append(keys, rightNode.Keys...)
+
+	vals := append(leftNode.Pointers, rightNode.Pointers...)
+
+	numKeysInLeft := len(keys) / 2
+	leftNode.Keys = keys[:numKeysInLeft]
+	leftNode.Pointers = vals[:1+numKeysInLeft]
+	rightNode.Keys = keys[numKeysInLeft+1:]
+	rightNode.Pointers = vals[numKeysInLeft+1:]
+
+	parent.Keys[i] = keys[numKeysInLeft]
 }
 
 func (leftNode *LeafNode) MergeNodes(rightNode *LeafNode, parent *InternalNode) {
@@ -45,15 +48,17 @@ func (leftNode *LeafNode) MergeNodes(rightNode *LeafNode, parent *InternalNode) 
 	for i := 0; parent.Pointers[i] != leftNode; i++ {
 	}
 
-	keys := append(leftNode.keys, rightNode.keys...)
+	keys := append(leftNode.Keys, rightNode.Keys...)
 	parent.DeleteAt(i)
-	vals := append(leftNode.values, rightNode.values...)
+	vals := append(leftNode.Values, rightNode.Values...)
 
-	leftNode.keys = keys
-	leftNode.values = vals
+	leftNode.Keys = keys
+	leftNode.Values = vals
 
 	// delete at shifts to left by one
 	parent.Pointers[i] = leftNode
+
+	leftNode.Right = rightNode.Right
 }
 
 func (leftNode *InternalNode) MergeNodes(rightNode *InternalNode, parent *InternalNode) (merged *InternalNode) {
@@ -81,8 +86,8 @@ func (n *InternalNode) DeleteAt(index int) {
 }
 
 func (n *LeafNode) DeleteAt(index int) {
-	n.keys = append(n.keys[:index], n.keys[index+1:]...)
-	n.values = append(n.values[:index], n.values[index+1:]...)
+	n.Keys = append(n.Keys[:index], n.Keys[index+1:]...)
+	n.Values = append(n.Values[:index], n.Values[index+1:]...)
 }
 
 func (tree *BTree) Delete(key Key) bool {
@@ -94,17 +99,17 @@ func (tree *BTree) Delete(key Key) bool {
 	}
 
 	leafNode := stack[len(stack)-1].Node.(*LeafNode)
-	index, _ := leafNode.keys.find(key)
+	index, _ := leafNode.Keys.find(key)
 	leafNode.DeleteAt(index)
 	stack = stack[:len(stack)-1]
 	top := stack[len(stack)-1].Node.(*InternalNode)
 
-	if len(leafNode.values) < (tree.degree)/2 {
+	if len(leafNode.Values) < (tree.degree)/2 {
 		// should merge or redistribute
-		if leafNode.Right != nil && len(leafNode.Right.keys) >= ((tree.degree)/2)+1 {
+		if leafNode.Right != nil && len(leafNode.Right.Keys) >= ((tree.degree)/2)+1 {
 			leafNode.Redistribute(leafNode.Right, top)
 			return true
-		} else if leafNode.Left != nil && len(leafNode.Left.keys) >= ((tree.degree)/2)+1 {
+		} else if leafNode.Left != nil && len(leafNode.Left.Keys) >= ((tree.degree)/2)+1 {
 			leafNode.Left.Redistribute(leafNode, top)
 			return true
 		} else {
@@ -137,10 +142,10 @@ func (tree *BTree) Delete(key Key) bool {
 				}
 
 				//try redistribute
-				if rightSibling != nil && len(rightSibling.Keys) > (tree.degree+1)/2 {
+				if rightSibling != nil && len(rightSibling.Pointers) > (tree.degree+1)/2 {
 					top.Redistribute(rightSibling, parent)
 					return true
-				} else if leftSibling != nil && len(leftSibling.Keys) > (tree.degree+1)/2 {
+				} else if leftSibling != nil && len(leftSibling.Pointers) > (tree.degree+1)/2 {
 					leftSibling.Redistribute(top, parent)
 					return true
 				}
@@ -154,12 +159,11 @@ func (tree *BTree) Delete(key Key) bool {
 					}
 					merged = leftSibling.MergeNodes(top, parent)
 				}
-				if top == tree.Root && len(top.Keys) == 0 {
+				if parent == tree.Root && len(parent.Keys) == 0 {
 					tree.Root = merged
 				}
 			}
 		}
 	}
-
 	return true
 }
