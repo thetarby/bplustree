@@ -1,5 +1,12 @@
 package btree
 
+// TODO:
+// 1. don't use Keys.find instead define one on Node and use that method.
+// 2. define util methods to change state of node such as shift_keys_by_n, shift_pointers_by_n, truncate_at_n
+//    and use them in methods like InsertAt and SplitNode
+// 3. Put a constraint on Key to make it fix sized maybe? It will solve many problems when we try to persist nodes on a disk
+// 4. Use interface methods in delete.go as well.
+
 import (
 	"fmt"
 	"reflect"
@@ -157,7 +164,7 @@ func (n *InternalNode) SplitNode(index int) (rightNode Node, keyAtLeft Key, keyA
 }
 
 func (n *LeafNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair) {
-	i, found := n.Keys.find(key)
+	i, found := n.findKey(key)
 	stackOut = append(stackIn, NodeIndexPair{n, i})
 	if !found {
 		return nil, stackOut
@@ -166,7 +173,7 @@ func (n *LeafNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value inte
 }
 
 func (n *InternalNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair) {
-	i, found := n.Keys.find(key)
+	i, found := n.findKey(key)
 	if found {
 		i++
 	}

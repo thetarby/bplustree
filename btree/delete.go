@@ -91,7 +91,7 @@ func (tree *BTree) Delete(key Key) bool {
 	}
 
 	leafNode := stack[len(stack)-1].Node.(*LeafNode)
-	index, _ := leafNode.Keys.find(key)
+	index, _ := leafNode.findKey(key)
 	leafNode.DeleteAt(index)
 	stack = stack[:len(stack)-1]
 	top := stack[len(stack)-1].Node.(*InternalNode)
@@ -120,11 +120,11 @@ func (tree *BTree) Delete(key Key) bool {
 				return true
 			}
 			parent := stack[len(stack)-1].Node.(*InternalNode)
-			index, _ = top.Keys.find(key)
+			index, _ = top.findKey(key)
 
 			if len(top.Keys) < (tree.degree)/2 {
 				// get siblings
-				indexAtParent, _ := parent.Keys.find(key)
+				indexAtParent, _ := parent.findKey(key)
 				var rightSibling, leftSibling, merged *InternalNode
 				if indexAtParent > 0 {
 					leftSibling = parent.Pointers[indexAtParent-1].(*InternalNode)
