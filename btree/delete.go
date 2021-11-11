@@ -1,78 +1,186 @@
 package btree
 
-func (n *InternalNode) MergeNode(rightNode *InternalNode, middlePointer node) (mergedNode *InternalNode) {
-	n.Keys = append(n.Keys, rightNode.Keys...)
-	n.Pointers[len(n.Pointers)-1] = middlePointer
-	n.Pointers = append(n.Pointers, rightNode.Pointers...)
+type DeletableNode interface {
+	shiftKeyValueToLeftAt(n int)
+	appendKey(key Key)
+	appendNode(node Node)
 
-	return n
+	Keylen() int
+	GetRight() Pointer
+	GetLeft() Pointer
+	MergeNodes(rightNode Node, parent Node)
+	Redistribute(rightNode_ Node, parent_ Node)
+	IsUnderFlow(degree int) bool
+	TruncateAfterValueAt(idx int)
 }
 
-func (leftNode *LeafNode) Redistribute(rightNode *LeafNode, parent *InternalNode) {
-	keys := append(leftNode.keys, rightNode.keys...)
-	vals := append(leftNode.values, rightNode.values)
-
-	leftNode.keys = keys[:len(keys)/2]
-	leftNode.values = vals[:len(vals)/2]
-	rightNode.keys = keys[len(keys)/2:]
-	rightNode.values = vals[len(vals)/2:]
+func MergeNodes(d DeletableNode, rightNode Node, parent Node) {
+	dAsNode := d.(Node)
 
 	var i int
-	for i := 0; parent.Pointers[i] != leftNode; i++ {
+	for i = 0; parent.GetValueAt(i).(Pointer) != dAsNode.GetPageId(); i++ {
 	}
-
-	parent.Keys[i] = rightNode.keys[0]
+	//d.appendKey(parent.GetKeyAt(i))
+	//d.appendNode(rightNode)
+	for ii := 0; ii < rightNode.Keylen()+1; ii++ {
+		var k Key
+		if ii == 0 {
+			k = parent.GetKeyAt(i)
+		} else {
+			k = rightNode.GetKeyAt(i - 1)
+		}
+		v := rightNode.GetValueAt(ii)
+		dAsNode.InsertAt(dAsNode.Keylen(), k, v)
+	}
+	parent.DeleteAt(i)
 }
 
-func (leftNode *InternalNode) Redistribute(rightNode *InternalNode, parent *InternalNode) {
-	keys := append(leftNode.Keys, rightNode.Keys...)
-	vals := append(leftNode.Pointers, rightNode.Pointers...)
+func Distribute(d DeletableNode, rightNode Node, parent Node) {
+	dAsNode := d.(Node)
 
-	leftNode.Keys = keys[:len(keys)/2]
-	leftNode.Pointers = vals[:len(vals)/2]
+	var i int
+	for i = 0; parent.GetValueAt(i).(Pointer) != dAsNode.GetPageId(); i++ {
+	}
+	for ii := 0; ii < rightNode.Keylen()+1; ii++ {
+		var k Key
+		if ii == 0 {
+			k = parent.GetKeyAt(i)
+		} else {
+			k = rightNode.GetKeyAt(i - 1)
+		}
+		v := rightNode.GetValueAt(ii)
+		dAsNode.InsertAt(dAsNode.Keylen(), k, v)
+	}
+	numKeysAtLeft := (dAsNode.Keylen() + rightNode.Keylen()) / 2
+	numKeysAtRight := (dAsNode.Keylen() + rightNode.Keylen()) - numKeysAtLeft
+
+	for i := numKeysAtLeft + 1; i < numKeysAtLeft+1+numKeysAtRight; i++ {
+		k := dAsNode.GetKeyAt(i)
+		v := dAsNode.GetValueAt(i)
+		rightNode.InsertAt(rightNode.Keylen(), k, v)
+	}
+	keyToParent := dAsNode.GetKeyAt(numKeysAtLeft)
+	parent.setKeyAt(i, keyToParent)
+
+	d.TruncateAfterValueAt(numKeysAtLeft)
+}
+
+func (n *InternalNode) Keylen() int {
+	return len(n.Keys)
+}
+
+func (n *InternalNode) GetRight() Pointer {
+	panic("no right pointer for internal nodes for now")
+}
+
+func (n *InternalNode) GetLeft() Pointer {
+	panic("no left pointer for internal nodes for now")
+}
+
+func (n *InternalNode) IsUnderFlow(degree int) bool {
+	return len(n.Keys) < (degree / 2)
+}
+
+func (n *LeafNode) Keylen() int {
+	return len(n.Keys)
+}
+
+func (n *LeafNode) GetRight() Pointer {
+	if n.Right == nil {
+		return -1 // TODO: -1 should never point to a real page
+	}
+	return n.Right.GetPageId()
+}
+
+func (n *LeafNode) GetLeft() Pointer {
+	if n.Left == nil {
+		return -1 // TODO: -1 should never point to a real page
+	}
+	return n.Left.GetPageId()
+}
+
+func (n *LeafNode) IsUnderFlow(degree int) bool {
+	return len(n.Values) < (degree)/2
+}
+
+func (n *LeafNode) Redistribute(rightNode_ Node, parent_ Node) {
+	rightNode := rightNode_.(*LeafNode)
+	parent := parent_.(*InternalNode)
+
+	var i int
+	for i := 0; parent.GetValueAt(i).(Pointer) != n.GetPageId(); i++ {
+	}
+
+	keys := append(n.Keys, rightNode.Keys...)
+	vals := append(n.Values, rightNode.Values...)
+
+	n.Keys = keys[:len(keys)/2]
+	n.Values = vals[:len(vals)/2]
 	rightNode.Keys = keys[len(keys)/2:]
-	rightNode.Pointers = vals[len(vals)/2:]
-
-	var i int
-	for i := 0; parent.Pointers[i] != leftNode; i++ {
-	}
+	rightNode.Values = vals[len(vals)/2:]
 
 	parent.Keys[i] = rightNode.Keys[0]
 }
 
-func (leftNode *LeafNode) MergeNodes(rightNode *LeafNode, parent *InternalNode) {
+func (n *InternalNode) Redistribute(rightNode_ Node, parent_ Node) {
+	rightNode := rightNode_.(*InternalNode)
+	parent := parent_.(*InternalNode)
+
 	var i int
-	for i := 0; parent.Pointers[i] != leftNode; i++ {
+	for i := 0; parent.GetValueAt(i).(Pointer) != n.GetPageId(); i++ {
 	}
 
-	keys := append(leftNode.keys, rightNode.keys...)
-	parent.DeleteAt(i)
-	vals := append(leftNode.values, rightNode.values...)
+	keys := append(n.Keys, parent.Keys[i])
+	keys = append(keys, rightNode.Keys...)
 
-	leftNode.keys = keys
-	leftNode.values = vals
+	vals := append(n.Pointers, rightNode.Pointers...)
 
-	// delete at shifts to left by one
-	parent.Pointers[i] = leftNode
+	numKeysInLeft := len(keys) / 2
+	n.Keys = keys[:numKeysInLeft]
+	n.Pointers = vals[:1+numKeysInLeft]
+	rightNode.Keys = keys[numKeysInLeft+1:]
+	rightNode.Pointers = vals[numKeysInLeft+1:]
+
+	parent.Keys[i] = keys[numKeysInLeft]
 }
 
-func (leftNode *InternalNode) MergeNodes(rightNode *InternalNode, parent *InternalNode) (merged *InternalNode) {
+func (n *LeafNode) MergeNodes(rightNode_ Node, parent_ Node) {
+	rightNode := rightNode_.(*LeafNode)
+	parent := parent_.(*InternalNode)
 	var i int
-	for i := 0; parent.Pointers[i] != leftNode; i++ {
+	for i = 0; parent.Pointers[i] != n.GetPageId(); i++ { // TODO: burdaki i scoped muş yani for içinde i:=0 diye init etmişim diğer branchleri kontrol et doru mu bunun çalışöıyor olması lazım
 	}
 
-	keys := append(leftNode.Keys, parent.Keys[i])
-	keys = append(keys, rightNode.Keys...)
+	keys := append(n.Keys, rightNode.Keys...)
 	parent.DeleteAt(i)
-	pointers := append(leftNode.Pointers, rightNode.Pointers...)
+	vals := append(n.Values, rightNode.Values...)
 
-	leftNode.Keys = keys
-	leftNode.Pointers = pointers
+	n.Keys = keys
+	n.Values = vals
 
 	// delete at shifts to left by one
-	parent.Pointers[i] = leftNode
+	parent.Pointers[i] = n.GetPageId()
 
-	return leftNode
+	n.Right = rightNode.Right
+}
+
+func (n *InternalNode) MergeNodes(rightNode_ Node, parent_ Node) {
+	rightNode := rightNode_.(*InternalNode)
+	parent := parent_.(*InternalNode)
+	var i int
+	for i := 0; parent.Pointers[i] != n.GetPageId(); i++ {
+	}
+
+	keys := append(n.Keys, parent.Keys[i])
+	keys = append(keys, rightNode.Keys...)
+	parent.DeleteAt(i)
+	pointers := append(n.Pointers, rightNode.Pointers...)
+
+	n.Keys = keys
+	n.Pointers = pointers
+
+	// delete at shifts to left by one
+	parent.Pointers[i] = n.GetPageId()
 }
 
 func (n *InternalNode) DeleteAt(index int) {
@@ -81,85 +189,6 @@ func (n *InternalNode) DeleteAt(index int) {
 }
 
 func (n *LeafNode) DeleteAt(index int) {
-	n.keys = append(n.keys[:index], n.keys[index+1:]...)
-	n.values = append(n.values[:index], n.values[index+1:]...)
-}
-
-func (tree *BTree) Delete(key Key) bool {
-	var stack = make([]NodeIndexPair, 0, 0)
-	var i interface{}
-	i, stack = tree.Root.findAndGetStack(key, stack)
-	if i == nil {
-		return false
-	}
-
-	leafNode := stack[len(stack)-1].Node.(*LeafNode)
-	index, _ := leafNode.keys.find(key)
-	leafNode.DeleteAt(index)
-	stack = stack[:len(stack)-1]
-	top := stack[len(stack)-1].Node.(*InternalNode)
-
-	if len(leafNode.values) < (tree.degree)/2 {
-		// should merge or redistribute
-		if leafNode.Right != nil && len(leafNode.Right.keys) >= ((tree.degree)/2)+1 {
-			leafNode.Redistribute(leafNode.Right, top)
-			return true
-		} else if leafNode.Left != nil && len(leafNode.Left.keys) >= ((tree.degree)/2)+1 {
-			leafNode.Left.Redistribute(leafNode, top)
-			return true
-		} else {
-			if leafNode.Right != nil {
-				leafNode.MergeNodes(leafNode.Right, top)
-			} else {
-				leafNode.Left.MergeNodes(leafNode, top)
-			}
-		}
-
-		for len(stack) > 0 {
-			top := stack[len(stack)-1].Node.(*InternalNode)
-			stack = stack[:len(stack)-1]
-			if len(stack) == 0 {
-				// if no parent left in stack it is done
-				return true
-			}
-			parent := stack[len(stack)-1].Node.(*InternalNode)
-			index, _ = top.Keys.find(key)
-
-			if len(top.Keys) < (tree.degree)/2 {
-				// get siblings
-				indexAtParent, _ := parent.Keys.find(key)
-				var rightSibling, leftSibling, merged *InternalNode
-				if indexAtParent > 0 {
-					leftSibling = parent.Pointers[indexAtParent-1].(*InternalNode)
-				}
-				if indexAtParent+1 < len(parent.Pointers) {
-					rightSibling = parent.Pointers[indexAtParent+1].(*InternalNode)
-				}
-
-				//try redistribute
-				if rightSibling != nil && len(rightSibling.Keys) > (tree.degree+1)/2 {
-					top.Redistribute(rightSibling, parent)
-					return true
-				} else if leftSibling != nil && len(leftSibling.Keys) > (tree.degree+1)/2 {
-					leftSibling.Redistribute(top, parent)
-					return true
-				}
-
-				// if redistribution is not valid merge
-				if rightSibling != nil {
-					merged = top.MergeNodes(rightSibling, parent)
-				} else {
-					if leftSibling == nil {
-						panic("Both siblings are null for an internal node! This should not be possible.")
-					}
-					merged = leftSibling.MergeNodes(top, parent)
-				}
-				if top == tree.Root && len(top.Keys) == 0 {
-					tree.Root = merged
-				}
-			}
-		}
-	}
-
-	return true
+	n.Keys = append(n.Keys[:index], n.Keys[index+1:]...)
+	n.Values = append(n.Values[:index], n.Values[index+1:]...)
 }
