@@ -13,6 +13,10 @@ import (
 	"sort"
 )
 
+var pager Pager = &NoopPager{}
+
+type Pointer int64
+
 type Key interface {
 	Less(than Key) bool
 }
@@ -39,18 +43,24 @@ type Node interface {
 	// keep the path it followed down to leaf node. value is nil when key does not exist.
 	findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair)
 	findKey(key Key) (index int, found bool)
-	SplitNode(index int) (left Node, keyAtLeft Key, keyAtRight Key)
+	shiftKeyValueAt(n int)
+	setKeyAt(idx int, key Key)
+	setValueAt(idx int, val interface{})
+	SplitNode(index int) (left Pointer, keyAtLeft Key, keyAtRight Key)
 	PrintNode()
 	IsOverFlow(degree int) bool
 	InsertAt(index int, key Key, val interface{})
+	GetPageId() Pointer
 }
 
 type InternalNode struct {
+	PersistentPage
 	Keys     Keys
-	Pointers []Node
+	Pointers []Pointer
 }
 
 type LeafNode struct {
+	PersistentPage
 	Keys   Keys
 	Values []interface{}
 	Right  *LeafNode
@@ -65,37 +75,25 @@ type BTree struct {
 }
 
 func NewBtree(degree int) *BTree {
-	p := make([]Node, 1, 2)
-	l := LeafNode{
-		Keys:   make(Keys, 0, 2),
-		Values: make([]interface{}, 0, 2),
-		Right:  nil,
-		Left:   nil,
-	}
-	p[0] = &l
+	l := pager.NewLeafNode()
+
+	root := pager.NewInternalNode()
+	// TODO: use a method here to be persistent
+	root.Pointers = []Pointer{l.GetPageId()}
 
 	return &BTree{
 		degree: degree,
 		length: 0,
-		Root: &InternalNode{
-			Keys:     make(Keys, 0, 2),
-			Pointers: p,
-		},
+		Root:   root,
 	}
 }
 
 func newNode() (n *InternalNode) {
-	return &InternalNode{
-		Keys:     make([]Key, 0, 2),
-		Pointers: make([]Node, 0, 2),
-	}
+	return pager.NewInternalNode()
 }
 
 func newLeafNode() (n *LeafNode) {
-	return &LeafNode{
-		Keys:   make([]Key, 0, 2),
-		Values: make([]interface{}, 0, 2),
-	}
+	return pager.NewLeafNode()
 }
 
 func (n *LeafNode) findKey(key Key) (index int, found bool) {
@@ -104,6 +102,37 @@ func (n *LeafNode) findKey(key Key) (index int, found bool) {
 
 func (n *InternalNode) findKey(key Key) (index int, found bool) {
 	return n.Keys.find(key)
+}
+
+func (n *LeafNode) shiftKeyValueAt(at int) {
+	n.Keys = append(n.Keys, nil)
+	n.Values = append(n.Values, nil)
+	copy(n.Keys[at+1:], n.Keys[at:])
+	copy(n.Values[at+1:], n.Values[at:])
+}
+
+func (n *InternalNode) shiftKeyValueAt(at int) {
+	n.Keys = append(n.Keys, nil)
+	var zeroPointer Pointer
+	n.Pointers = append(n.Pointers, zeroPointer)
+	copy(n.Keys[at+1:], n.Keys[at:])
+	copy(n.Pointers[at+2:], n.Pointers[at+1:])
+}
+
+func (n *LeafNode) setKeyAt(idx int, key Key) {
+	n.Keys[idx] = key
+}
+
+func (n *InternalNode) setKeyAt(idx int, key Key) {
+	n.Keys[idx] = key
+}
+
+func (n *LeafNode) setValueAt(idx int, val interface{}) {
+	n.Values[idx] = val
+}
+
+func (n *InternalNode) setValueAt(idx int, val interface{}) {
+	n.Pointers[idx] = val.(Pointer)
 }
 
 func (n *LeafNode) IsOverFlow(degree int) bool {
@@ -115,26 +144,20 @@ func (n *InternalNode) IsOverFlow(degree int) bool {
 }
 
 func (n *LeafNode) InsertAt(index int, key Key, value interface{}) {
-	n.Keys = append(n.Keys, key)
-	copy(n.Keys[index+1:], n.Keys[index:])
-	n.Keys[index] = key
-
-	n.Values = append(n.Values, value)
-	copy(n.Values[index+1:], n.Values[index:])
-	n.Values[index] = value
+	n.shiftKeyValueAt(index)
+	n.setKeyAt(index, key)
+	n.setValueAt(index, value)
+	pager.SyncLeafNode(n)
 }
 
 func (n *InternalNode) InsertAt(index int, key Key, pointer interface{}) {
-	n.Keys = append(n.Keys, key)
-	copy(n.Keys[index+1:], n.Keys[index:])
-	n.Keys[index] = key
-
-	n.Pointers = append(n.Pointers, pointer.(Node))
-	copy(n.Pointers[index+2:], n.Pointers[index+1:])
-	n.Pointers[index+1] = pointer.(Node)
+	n.shiftKeyValueAt(index)
+	n.setKeyAt(index, key)
+	n.setValueAt(index+1, pointer)
+	pager.SyncInternalNode(n)
 }
 
-func (n *LeafNode) SplitNode(index int) (rightNode Node, keyAtLeft Key, keyAtRight Key) {
+func (n *LeafNode) SplitNode(index int) (rightNode Pointer, keyAtLeft Key, keyAtRight Key) {
 	right := newLeafNode()
 	keyAtLeft = n.Keys[index-1]
 	keyAtRight = n.Keys[index]
@@ -146,10 +169,13 @@ func (n *LeafNode) SplitNode(index int) (rightNode Node, keyAtLeft Key, keyAtRig
 	right.Right = n.Right
 	n.Right = right
 	right.Left = n
-	return right, keyAtLeft, keyAtRight
+
+	pager.SyncLeafNode(n)
+	pager.SyncLeafNode(right)
+	return right.GetPageId(), keyAtLeft, keyAtRight
 }
 
-func (n *InternalNode) SplitNode(index int) (rightNode Node, keyAtLeft Key, keyAtRight Key) {
+func (n *InternalNode) SplitNode(index int) (rightNode Pointer, keyAtLeft Key, keyAtRight Key) {
 	right := newNode()
 	keyAtLeft = n.Keys[index-1]
 	keyAtRight = n.Keys[index]
@@ -160,7 +186,10 @@ func (n *InternalNode) SplitNode(index int) (rightNode Node, keyAtLeft Key, keyA
 	n.Pointers = n.Pointers[:index]
 
 	n.truncate(index)
-	return right, keyAtLeft, keyAtRight
+
+	pager.SyncInternalNode(n)
+	pager.SyncInternalNode(right)
+	return right.GetPageId(), keyAtLeft, keyAtRight
 }
 
 func (n *LeafNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair) {
@@ -178,7 +207,8 @@ func (n *InternalNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value 
 		i++
 	}
 	stackOut = append(stackIn, NodeIndexPair{n, i})
-	res, stackOut := n.Pointers[i].findAndGetStack(key, stackOut)
+	node := pager.GetNode(n.Pointers[i])
+	res, stackOut := node.findAndGetStack(key, stackOut)
 	return res, stackOut
 }
 
@@ -220,10 +250,12 @@ func (tree *BTree) Insert(key Key, value interface{}) {
 			rightNod, _, rightKey = popped.SplitNode((tree.degree) / 2)
 			if popped == tree.Root {
 				leftNode := popped
-				tree.Root = &InternalNode{
-					Keys:     Keys{rightKey},
-					Pointers: []Node{leftNode, rightNod.(*InternalNode)},
-				} // if it is root it should be the last item in the stack so loop will be breaked
+
+				// TODO: a method should be called here
+				tree.Root = pager.NewInternalNode()
+				tree.Root.Keys = Keys{rightKey}
+				tree.Root.Pointers = []Pointer{leftNode.GetPageId(), rightNod.(Pointer)}
+				pager.SyncInternalNode(tree.Root)
 			}
 		} else {
 			break
@@ -257,10 +289,12 @@ func (tree *BTree) InsertOrReplace(key Key, value interface{}) (isInserted bool)
 			rightNod, _, rightKey = popped.SplitNode((tree.degree) / 2)
 			if popped == tree.Root {
 				leftNode := popped
-				tree.Root = &InternalNode{
-					Keys:     Keys{rightKey},
-					Pointers: []Node{leftNode, rightNod.(*InternalNode)},
-				} // if it is root it should be the last item in the stack so loop will be breaked
+
+				// TODO: a method should be called here
+				tree.Root = pager.NewInternalNode()
+				tree.Root.Keys = Keys{rightKey}
+				tree.Root.Pointers = []Pointer{leftNode.GetPageId(), rightNod.(Pointer)}
+				pager.SyncInternalNode(tree.Root)
 			}
 		} else {
 			break
@@ -281,7 +315,7 @@ func (tree *BTree) Height() int {
 	for {
 		switch currentNode.(type) {
 		case *InternalNode:
-			currentNode = currentNode.(*InternalNode).Pointers[0]
+			currentNode = pager.GetNode(currentNode.(*InternalNode).Pointers[0])
 		case *LeafNode:
 			return acc + 1
 		}
@@ -290,24 +324,26 @@ func (tree *BTree) Height() int {
 }
 
 func (tree BTree) Print() {
-	queue := make([]Node, 0, 2)
-	queue = append(queue, tree.Root)
-	queue = append(queue, nil)
+	queue := make([]Pointer, 0, 2)
+	queue = append(queue, tree.Root.GetPageId())
+	queue = append(queue, 0)
 	for i := 0; i < len(queue); i++ {
-		if queue[i] != nil && reflect.TypeOf(queue[i]) == reflect.TypeOf(newLeafNode()) {
+		if queue[i] != 0 && reflect.TypeOf(queue[i]) == reflect.TypeOf(newLeafNode()) {
 			break
 		}
-		if queue[i] == nil {
-			queue = append(queue, nil)
+		if queue[i] == 0 {
+			queue = append(queue, 0)
 			continue
 		}
-		node := queue[i].(*InternalNode)
+
+		node := pager.GetNode(queue[i]).(*InternalNode)
 
 		queue = append(queue, node.Pointers...)
 	}
 	for _, n := range queue {
-		if n != nil {
-			n.PrintNode()
+		if n != 0 {
+			currNode := pager.GetNode(n)
+			currNode.PrintNode()
 		} else {
 			fmt.Print("\n ### \n")
 		}
