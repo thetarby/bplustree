@@ -14,7 +14,7 @@ import (
 type BTree struct {
 	degree int
 	length int
-	Root   Pointer // TODO: this should be pointer
+	Root   Pointer
 	pager  Pager
 }
 
