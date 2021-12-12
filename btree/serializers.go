@@ -5,9 +5,14 @@ import (
 	"encoding/binary"
 )
 
+// KeySerializer is the interface a b+ tree uses to serialize keys in a b+ tree. A type should have a corresponding
+// KeySerializer to be used as key in b+tree. All keys of the same type should have the same byte length when they are
+// serialized. That behaviour is enforced by Size method.
 type KeySerializer interface {
 	Serialize(key Key) ([]byte, error)
 	Deserialize([]byte) (Key, error)
+
+	// Size return byte length of the serialized key.
 	Size() int
 }
 
@@ -57,6 +62,10 @@ func (s *StringKeySerializer) Size() int {
 	return s.Len
 }
 
+// ValueSerializer is very similar to KeySerializer. A type should have a ValueSerializer implemented to be
+// used as a value in b+ tree. All values serialized by a ValueSerializer should also have the same length although
+// that behaviour can be changed easily by slightly modifying the implementation since values are only stored in
+// leaf nodes.
 type ValueSerializer interface {
 	Serialize(val interface{}) ([]byte, error)
 	Deserialize([]byte) (interface{}, error)

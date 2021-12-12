@@ -28,6 +28,8 @@ func (it *TreeIterator) Next() interface{} {
 	return val
 }
 
+// NewTreeIterator creates an iterator which starts from the smallest key in the tree and iterates through up until
+// the largest key.
 func NewTreeIterator(tree *BTree, pager Pager) *TreeIterator {
 	curr := tree.GetRoot()
 	for !curr.IsLeaf() {
@@ -46,6 +48,8 @@ func NewTreeIterator(tree *BTree, pager Pager) *TreeIterator {
 	}
 }
 
+// NewTreeIteratorWithKey starts the iterator from the given key if it exists otherwise starts from the smallest key
+// which is larger than given key.
 func NewTreeIteratorWithKey(key Key, tree *BTree, pager Pager) *TreeIterator {
 	_, stack := tree.FindAndGetStack(key, Read)
 	leaf, idx := stack[len(stack)-1].Node, stack[len(stack)-1].Index
