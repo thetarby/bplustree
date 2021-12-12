@@ -154,7 +154,7 @@ func (tree *BTree) Height() int {
 	}
 }
 
-func (tree BTree) Print() {
+func (tree *BTree) Print() {
 	pager := tree.pager
 	queue := make([]Pointer, 0, 2)
 	queue = append(queue, tree.Root)

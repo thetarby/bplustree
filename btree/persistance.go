@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 )
 
-/* InternalNode and SlottedPage structures should extend a PersistentPage implementation to be able to be disk persistent */
-
+// PersistentPage is an interface that InternalNode and SlottedPage structures should implement to be able to be
+// disk persistent. It encapsulates methods which would be useful to flush nodes to disk.
 type PersistentPage interface {
 	GetData() []byte
 
@@ -15,7 +15,7 @@ type PersistentPage interface {
 }
 
 // Pager abstracts away the logic about allocating and managing tree nodes. For a truly persistent b+ tree implementation
-// a real Pager should be implemented. This package only implements mock implementations of the Pager.
+// a real Pager should be implemented. This package only implements mock or in memory implementations of the Pager.
 type Pager interface {
 	// NewInternalNode first should create a PersistentPage which points to a byte array.
 	// Then initialize an InternalNode structure.

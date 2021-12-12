@@ -1,6 +1,7 @@
 package btree
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
@@ -71,6 +72,21 @@ func TestPersistentInsert_Or_Replace_Should_Replace_Value_When_Key_Exists(t *tes
 
 	tree.InsertOrReplace(PersistentKey(500), "new_500")
 	val := tree.Find(PersistentKey(500))
+
+	assert.Contains(t, val.(string), "new_500")
+}
+
+func TestPersistentInsert_Or_Replace_Should_Replace_Value_When_Key_Exists_2(t *testing.T) {
+	tree := NewBtreeWithPager(3,
+		NewNoopPagerWithValueSize(&StringKeySerializer{Len: 10},
+			&StringValueSerializer{Len: 10},
+		),
+	)
+	for i := 0; i < 1000; i++ {
+		tree.Insert(StringKey(strconv.Itoa(i)), fmt.Sprintf("value_%v", i))
+	}
+
+	val := tree.Find(StringKey("500")) // val is "value_500"
 
 	assert.Contains(t, val.(string), "new_500")
 }

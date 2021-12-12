@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTreeIterator_Should_Return_Every_Value_Bigger_Than_Or_Euqal_To_Key_When_Initialized_With_A_Key(t *testing.T) {
+func TestTreeIterator_Should_Return_Every_Value_Bigger_Than_Or_Equal_To_Key_When_Initialized_With_A_Key(t *testing.T) {
 	tree := NewBtreeWithPager(3, NewNoopPagerWithValueSize(&StringKeySerializer{Len: 11}, &StringValueSerializer{Len: 11}))
 	log.SetOutput(ioutil.Discard)
 	n := 10000
