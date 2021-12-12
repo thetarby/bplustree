@@ -44,15 +44,6 @@ func (tree *BTree) GetRoot() Node {
 	return tree.pager.GetNode(tree.Root)
 }
 
-func ConstructBtreeFromRootPointer(rootPage Pointer, degree int, pager Pager) *BTree {
-	return &BTree{
-		degree: degree,
-		length: 0,
-		Root:   rootPage,
-		pager:  pager,
-	}
-}
-
 func (tree *BTree) GetPager() Pager {
 	return tree.pager
 }

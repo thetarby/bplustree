@@ -14,6 +14,8 @@ type PersistentPage interface {
 	GetPageId() Pointer
 }
 
+// Pager abstracts away the logic about allocating and managing tree nodes. For a truly persistent b+ tree implementation
+// a real Pager should be implemented. This package only implements mock implementations of the Pager.
 type Pager interface {
 	// NewInternalNode first should create a PersistentPage which points to a byte array.
 	// Then initialize an InternalNode structure.
@@ -31,8 +33,12 @@ type Pager interface {
 	// recognize if it is an InternalNode or LeafNode and return the correct type.
 	GetNode(p Pointer) Node
 
+	// Unpin is called when we are done with reading or writing to a tree node. In a truly persistent implementation
+	// it could flush nodes to disk or not depending on isDirty parameter. An in memory implementation of this method could
+	// be a noop
 	Unpin(n Node, isDirty bool)
 
+	// UnpinByPointer does the same thing as Unpin to the node pointed by p Pointer.
 	UnpinByPointer(p Pointer, isDirty bool)
 }
 
