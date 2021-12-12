@@ -29,9 +29,6 @@ type NodeIndexPair struct {
 }
 
 type Node interface {
-	// findAndGetStack is used to recursively find the given key and it also passes a stack object recursively to
-	// keep the path it followed down to leaf node. value is nil when key does not exist.
-	findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair)
 	findKey(key Key) (index int, found bool)
 	shiftKeyValueToRightAt(n int)
 	shiftKeyValueToLeftAt(n int)
@@ -47,12 +44,21 @@ type Node interface {
 	DeleteAt(index int)
 	GetPageId() Pointer
 	IsLeaf() bool
+	GetHeader() *PersistentNodeHeader
+	SetHeader(*PersistentNodeHeader)
+
+	// IsSafeForSplit returns true if there is at least one empty place in the node meaning it
+	// won't split even one key is inserted
+	IsSafeForSplit(degree int) bool
+
+	// IsSafeForMerge returns true if it is more than half full meaning it won't underflow and merge even
+	// one key is deleted
+	IsSafeForMerge(degree int) bool
 
 	/* delete related methods */
 
 	Keylen() int
 	GetRight() Pointer
-	GetLeft() Pointer
 	MergeNodes(rightNode Node, parent Node)
 	Redistribute(rightNode_ Node, parent_ Node)
 	IsUnderFlow(degree int) bool
@@ -65,6 +71,22 @@ type InternalNode struct {
 	pager    Pager
 }
 
+func (n *InternalNode) GetHeader() *PersistentNodeHeader {
+	panic("implement me")
+}
+
+func (n *InternalNode) SetHeader(header *PersistentNodeHeader) {
+	panic("implement me")
+}
+
+func (n *InternalNode) IsSafeForSplit(degree int) bool {
+	panic("implement me")
+}
+
+func (n *InternalNode) IsSafeForMerge(degree int) bool {
+	panic("implement me")
+}
+
 type LeafNode struct {
 	PersistentPage
 	Keys   Keys
@@ -72,6 +94,22 @@ type LeafNode struct {
 	Right  *LeafNode
 	Left   *LeafNode
 	pager  Pager
+}
+
+func (n *LeafNode) GetHeader() *PersistentNodeHeader {
+	panic("implement me")
+}
+
+func (n *LeafNode) SetHeader(header *PersistentNodeHeader) {
+	panic("implement me")
+}
+
+func (n *LeafNode) IsSafeForSplit(degree int) bool {
+	panic("implement me")
+}
+
+func (n *LeafNode) IsSafeForMerge(degree int) bool {
+	panic("implement me")
 }
 
 func newInternalNode(firstPointer Pointer) (n *InternalNode) {
@@ -220,27 +258,6 @@ func (n *InternalNode) SplitNode(index int) (rightNode Pointer, keyAtLeft Key, k
 	n.truncate(index)
 
 	return right.GetPageId(), keyAtLeft, keyAtRight
-}
-
-func (n *LeafNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair) {
-	i, found := n.findKey(key)
-	stackOut = append(stackIn, NodeIndexPair{n.GetPageId(), i})
-	if !found {
-		return nil, stackOut
-	}
-	return n.Values[i], stackOut
-}
-
-func (n *InternalNode) findAndGetStack(key Key, stackIn []NodeIndexPair) (value interface{}, stackOut []NodeIndexPair) {
-	pager := n.pager
-	i, found := n.findKey(key)
-	if found {
-		i++
-	}
-	stackOut = append(stackIn, NodeIndexPair{n.GetPageId(), i})
-	node := pager.GetNode(n.Pointers[i])
-	res, stackOut := node.findAndGetStack(key, stackOut)
-	return res, stackOut
 }
 
 func (n *LeafNode) PrintNode() {
