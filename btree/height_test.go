@@ -1,29 +1,30 @@
 package btree
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHeight_Should_Return_Correct_Height(t *testing.T) {
 	tests := []struct {
 		tree     *BTree
-		toInsert []MyInt
+		toInsert []PersistentKey
 		expected int
 	}{
 		{
-			tree:     NewBtree(3),
-			toInsert: []MyInt{MyInt(1), MyInt(2), MyInt(3), MyInt(4), MyInt(5), MyInt(6), MyInt(7), MyInt(8), MyInt(9)},
+			tree:     NewBtreeWithPager(3, NewNoopPagerWithValueSize(&PersistentKeySerializer{}, &StringValueSerializer{Len: 5})),
+			toInsert: []PersistentKey{PersistentKey(1), PersistentKey(2), PersistentKey(3), PersistentKey(4), PersistentKey(5), PersistentKey(6), PersistentKey(7), PersistentKey(8), PersistentKey(9)},
 			expected: 4,
 		},
 		{
-			tree:     NewBtree(4),
-			toInsert: []MyInt{MyInt(1), MyInt(2), MyInt(3), MyInt(4)},
+			tree:     NewBtreeWithPager(4, NewNoopPagerWithValueSize(&PersistentKeySerializer{}, &StringValueSerializer{Len: 5})),
+			toInsert: []PersistentKey{PersistentKey(1), PersistentKey(2), PersistentKey(3), PersistentKey(4)},
 			expected: 2,
 		},
 		{
-			tree:     NewBtree(5),
-			toInsert: []MyInt{MyInt(1), MyInt(2), MyInt(3), MyInt(4), MyInt(5)},
+			tree:     NewBtreeWithPager(5, NewNoopPagerWithValueSize(&PersistentKeySerializer{}, &StringValueSerializer{Len: 5})),
+			toInsert: []PersistentKey{PersistentKey(1), PersistentKey(2), PersistentKey(3), PersistentKey(4), PersistentKey(5)},
 			expected: 2,
 		},
 	}
