@@ -64,7 +64,7 @@ func (n NoopPersistentPage) GetPageId() Pointer {
 	return n.pageId
 }
 
-// will be used by noop peristent pager. Making them global is not good but NoopPager is only intented
+// will be used by noop persistent pager. Making them global is not good but NoopPager is only intented
 // for testing purposes
 var lastPageId Pointer = 0
 var mapping = make(map[Pointer]Node)
@@ -133,7 +133,7 @@ func (n *NoopPersistentPager) GetNode(p Pointer) Node {
 	return mapping[p]
 }
 
-func NewNoopPagerWithValueSize(serializer KeySerializer, valSerializer ValueSerializer) *NoopPersistentPager {
+func NewNoopPager(serializer KeySerializer, valSerializer ValueSerializer) *NoopPersistentPager {
 	return &NoopPersistentPager{
 		KeySerializer:   serializer,
 		ValueSerializer: valSerializer,

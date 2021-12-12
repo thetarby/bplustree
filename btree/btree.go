@@ -1,12 +1,5 @@
 package btree
 
-// TODO:
-// 1. don't use Keys.find instead define one on Node and use that method.
-// 2. define util methods to change state of node such as shift_keys_by_n, shift_pointers_by_n, truncate_at_n
-//    and use them in methods like InsertAt and SplitNode
-// 3. Put a constraint on Key to make it fix sized maybe? It will solve many problems when we try to persist nodes on a disk
-// 4. Use interface methods in delete.go as well.
-
 import (
 	"fmt"
 )

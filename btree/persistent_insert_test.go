@@ -1,14 +1,13 @@
 package btree
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"testing"
 )
 
 func TestPersistent_Insert_Should_Split_Root_When_It_Has_M_Keys(t *testing.T) {
-	tree := NewBtreeWithPager(3, NewNoopPagerWithValueSize(&PersistentKeySerializer{}, &SlotPointerValueSerializer{}))
+	tree := NewBtreeWithPager(3, NewNoopPager(&PersistentKeySerializer{}, &SlotPointerValueSerializer{}))
 	p := SlotPointer{
 		PageId:  10,
 		SlotIdx: 10,
@@ -25,7 +24,7 @@ func TestPersistent_Insert_Should_Split_Root_When_It_Has_M_Keys(t *testing.T) {
 }
 
 func TestPersistentEvery_Inserted_Should_Be_Found(t *testing.T) {
-	tree := NewBtreeWithPager(80, NewNoopPagerWithValueSize(&PersistentKeySerializer{}, &SlotPointerValueSerializer{}))
+	tree := NewBtreeWithPager(80, NewNoopPager(&PersistentKeySerializer{}, &SlotPointerValueSerializer{}))
 	for i := 0; i < 10000; i++ {
 		tree.Insert(PersistentKey(i), SlotPointer{
 			PageId:  int64(i),
@@ -48,7 +47,7 @@ func TestPersistentEvery_Inserted_Should_Be_Found(t *testing.T) {
 }
 
 func TestPersistentInsert_Or_Replace_Should_Return_False_When_Key_Exists(t *testing.T) {
-	tree := NewBtreeWithPager(3, NewNoopPagerWithValueSize(&PersistentKeySerializer{}, &SlotPointerValueSerializer{}))
+	tree := NewBtreeWithPager(3, NewNoopPager(&PersistentKeySerializer{}, &SlotPointerValueSerializer{}))
 	for i := 0; i < 1000; i++ {
 		tree.Insert(PersistentKey(i), SlotPointer{
 			PageId:  int64(i),
@@ -65,28 +64,13 @@ func TestPersistentInsert_Or_Replace_Should_Return_False_When_Key_Exists(t *test
 }
 
 func TestPersistentInsert_Or_Replace_Should_Replace_Value_When_Key_Exists(t *testing.T) {
-	tree := NewBtreeWithPager(3, NewNoopPagerWithValueSize(&PersistentKeySerializer{}, &StringValueSerializer{Len: 10}))
+	tree := NewBtreeWithPager(3, NewNoopPager(&PersistentKeySerializer{}, &StringValueSerializer{Len: 10}))
 	for i := 0; i < 1000; i++ {
 		tree.Insert(PersistentKey(i), strconv.Itoa(i))
 	}
 
 	tree.InsertOrReplace(PersistentKey(500), "new_500")
 	val := tree.Find(PersistentKey(500))
-
-	assert.Contains(t, val.(string), "new_500")
-}
-
-func TestPersistentInsert_Or_Replace_Should_Replace_Value_When_Key_Exists_2(t *testing.T) {
-	tree := NewBtreeWithPager(3,
-		NewNoopPagerWithValueSize(&StringKeySerializer{Len: 10},
-			&StringValueSerializer{Len: 10},
-		),
-	)
-	for i := 0; i < 1000; i++ {
-		tree.Insert(StringKey(strconv.Itoa(i)), fmt.Sprintf("value_%v", i))
-	}
-
-	val := tree.Find(StringKey("500")) // val is "value_500"
 
 	assert.Contains(t, val.(string), "new_500")
 }
